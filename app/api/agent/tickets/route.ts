@@ -14,42 +14,41 @@ export async function GET(request: Request) {
     const agentName = searchParams.get('agentName');
 
     try {
-        const query: any = {};
+        let agent = null;
+        if (agentName) {
+            agent = await Agent.findOne({ name: agentName });
+        }
 
-        // 1. Status Filter & Visibility Rules
-        if (status !== 'ALL') {
-            // Specific Tab Selected
-            query.status = status;
+        let query: any = {};
 
-            // Strict visibility for CLOSED tab
-            if (status === 'CLOSED') {
-                if (!agentName) return NextResponse.json([]);
-                const agent = await Agent.findOne({ name: agentName });
-                if (!agent) return NextResponse.json([]);
-                query.assignedAgentId = agent._id;
-            }
-        } else {
-            // Global Search (status = ALL)
-            // Show: OPEN tickets OR ONGOING tickets OR (CLOSED tickets assigned to me)
-
-            if (!agentName) {
-                // If no agent name, show OPEN and ONGOING
+        // -------------------
+        // 1. Tab-specific query
+        // -------------------
+        if (status === 'OPEN') {
+            query.status = 'OPEN';
+        } else if (status === 'ONGOING') {
+            if (!agent) return NextResponse.json([]); // No agent → no ongoing tickets
+            query.status = 'ONGOING';
+            query.assignedAgentId = agent._id;
+        } else if (status === 'CLOSED') {
+            if (!agent) return NextResponse.json([]); // No agent → no closed tickets
+            query.status = 'CLOSED';
+            query.assignedAgentId = agent._id;
+        } else if (status === 'ALL') {
+            if (!agent) {
                 query.status = { $in: ['OPEN', 'ONGOING'] };
             } else {
-                const agent = await Agent.findOne({ name: agentName });
-                if (!agent) {
-                    query.status = { $in: ['OPEN', 'ONGOING'] };
-                } else {
-                    query.$or = [
-                        { status: 'OPEN' },
-                        { status: 'ONGOING' },
-                        { status: 'CLOSED', assignedAgentId: agent._id }
-                    ];
-                }
+                query.$or = [
+                    { status: 'OPEN' },
+                    { status: 'ONGOING', assignedAgentId: agent._id },
+                    { status: 'CLOSED', assignedAgentId: agent._id }
+                ];
             }
         }
 
-        // 2. Search Filter
+        // -------------------
+        // 2. Search filter
+        // -------------------
         if (search) {
             const customers = await Customer.find({
                 $or: [
@@ -67,26 +66,21 @@ export async function GET(request: Request) {
                 ],
             };
 
-            // Combine with existing query
             if (query.$or) {
-                // If we already have an $or from visibility rules, we need to AND it with search
-                query.$and = [
-                    { $or: query.$or },
-                    searchCondition
-                ];
-                delete query.$or; // Remove the top-level $or as it's now inside $and
+                query.$and = [{ $or: query.$or }, searchCondition];
+                delete query.$or;
             } else {
-                // Just add to query
                 Object.assign(query, searchCondition);
             }
         }
 
-        // 3. Random Sampling for OPEN tickets (Concurrency)
-        // If status is OPEN and NOT searching, return 5 random tickets
+        // -------------------
+        // 3. Random sampling for OPEN tickets
+        // -------------------
         if (status === 'OPEN' && !search) {
             const tickets = await Ticket.aggregate([
                 { $match: { status: 'OPEN' } },
-                { $sample: { size: 5 } },
+                { $sample: { size: 5 } }, // Random 5 tickets
                 {
                     $lookup: {
                         from: 'customers',
@@ -95,19 +89,15 @@ export async function GET(request: Request) {
                         as: 'customerId',
                     },
                 },
-                {
-                    $unwind: {
-                        path: '$customerId',
-                        preserveNullAndEmptyArrays: true,
-                    },
-                },
-                {
-                    $sort: { priority: -1, lastMessageAt: -1 }, // Optional: sort the random batch?
-                },
+                { $unwind: { path: '$customerId', preserveNullAndEmptyArrays: true } },
+                { $sort: { priority: -1, lastMessageAt: -1 } },
             ]);
             return NextResponse.json(tickets);
         }
 
+        // -------------------
+        // 4. Regular find for ongoing/closed/all
+        // -------------------
         const tickets = await Ticket.find(query)
             .populate('customerId', 'name phone')
             .sort({ priority: -1, lastMessageAt: -1 })
@@ -116,9 +106,6 @@ export async function GET(request: Request) {
         return NextResponse.json(tickets);
     } catch (error) {
         console.error('Error fetching tickets:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch tickets' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
     }
 }

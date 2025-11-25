@@ -60,7 +60,7 @@ export function TicketQueue({
         };
 
         fetchOngoingCount();
-        const interval = setInterval(fetchOngoingCount, 5000); // Poll every 10s
+        const interval = setInterval(fetchOngoingCount, 10000); // Poll every 10s
         return () => clearInterval(interval);
     }, [agentName]);
 

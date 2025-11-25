@@ -179,10 +179,6 @@ export default function AgentDashboardPage() {
 
             fetchSelectedTicket();
             fetchTickets();
-            // If we are in OPEN tab, the ticket will disappear, so maybe deselect or switch tab?
-            // For now, we keep it selected but it might vanish from the list if we stay on OPEN tab.
-            // Ideally we switch to ONGOING tab or just let it be.
-            // Let's switch to ONGOING tab to follow the ticket.
             setCurrentTab('ONGOING');
         } catch (error) {
             console.error('Error assigning ticket:', error);
@@ -199,7 +195,6 @@ export default function AgentDashboardPage() {
             });
             fetchSelectedTicket();
             fetchTickets();
-            setCurrentTab('CLOSED');
         } catch (error) {
             console.error('Error closing ticket:', error);
         }
