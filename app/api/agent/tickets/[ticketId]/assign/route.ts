@@ -1,14 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import dbConnect from '@/lib/db';
 import Ticket from '@/models/Ticket';
 import Agent from '@/models/Agent';
 
 export async function POST(
-    request: Request,
-    context: { params: { ticketId: string } }
+    request: NextRequest,
+    { params }: { params: { ticketId: string } }
 ) {
     await dbConnect();
-    const { ticketId } = context.params;
+    const { ticketId } = params;
 
     try {
         const body = await request.json();
