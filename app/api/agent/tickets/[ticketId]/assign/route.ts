@@ -5,10 +5,10 @@ import Agent from '@/models/Agent';
 
 export async function POST(
     request: NextRequest,
-    { params }: { params: { ticketId: string } }
+    { params }: { params: Promise<{ ticketId: string }> }
 ) {
     await dbConnect();
-    const { ticketId } = params;
+    const { ticketId } = await params;
 
     try {
         const body = await request.json();
