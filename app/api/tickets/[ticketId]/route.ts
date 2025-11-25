@@ -6,7 +6,7 @@ import Customer from '@/models/Customer';
 
 export async function GET(
     request: Request,
-    { params }: { params: { ticketId: string } }
+    { params }: { params: Promise<{ ticketId: string }> }
 ) {
     await dbConnect();
     const { ticketId } = await params;

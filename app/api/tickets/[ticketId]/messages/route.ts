@@ -5,7 +5,7 @@ import Message from '@/models/Message';
 
 export async function POST(
     request: Request,
-    { params }: { params: { ticketId: string } }
+    { params }: { params: Promise<{ ticketId: string }> }
 ) {
     await dbConnect();
     const { ticketId } = await params;

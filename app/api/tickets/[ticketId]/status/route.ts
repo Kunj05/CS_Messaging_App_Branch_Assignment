@@ -4,7 +4,7 @@ import Ticket from '@/models/Ticket';
 
 export async function PATCH(
     request: Request,
-    { params }: { params: { ticketId: string } }
+    { params }: { params: Promise<{ ticketId: string }> }
 ) {
     await dbConnect();
     const { ticketId } = await params;
